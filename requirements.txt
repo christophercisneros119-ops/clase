@@ -1,0 +1,6 @@
+python-telegram-bot
+openai
+nest-asyncio
+aiohttp
+flask
+gunicorn

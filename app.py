@@ -15,13 +15,18 @@ from config import BOT_TOKEN, ALLOWED_USER_ID, OPENROUTER_API_KEY, TEXT_MODEL, S
 
 logging.basicConfig(level=logging.INFO)
 
-# Servidor web mínimo para mantener el servicio activo
+# 1. Servidor Flask para mantener activo Render
 flask_app = Flask(__name__)
 
 @flask_app.route('/')
 def home():
-    return "🤖 Bot activo 24/7 en Render"
+    return "🤖 Bot de Sofía activo 24/7"
 
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host="0.0.0.0", port=port)
+
+# 2. Cliente de OpenRouter
 ai_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
@@ -89,17 +94,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(history) > 20:
         context.user_data["history"] = [history[0]] + history[-19:]
 
-def run_telegram_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+if __name__ == "__main__":
+    # Iniciar Flask en un hilo de fondo para satisfacer a Render
+    threading.Thread(target=run_flask, daemon=True).start()
+    
+    # Iniciar Telegram en el HILO PRINCIPAL
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    logging.info("🤖 Iniciando Bot de Telegram en el hilo principal...")
     app.run_polling(drop_pending_updates=True)
-
-# Iniciar bot en un hilo secundario
-threading.Thread(target=run_telegram_bot, daemon=True).start()
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    flask_app.run(host="0.0.0.0", port=port)
